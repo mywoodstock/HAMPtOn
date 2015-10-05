@@ -68,9 +68,6 @@ $(BIN2): $(OBJ2)
 $(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS_HPP)
 	$(CXX) -c $< -o $@ $(CXX_FLAGS) $(CXX_INCL)
 
-	#cat $< | sed "s/ENV_PATOH_BIN/$(subst,/,'\/',$(PATOHBIN))/g" \
-	#	| sed s/ENV_BASE_DIR/$(BASEDIR)/g \
-	#	| sed s/ENV_TEMP_DIR/$(subst,/,'\/',$(TEMPDIR))/g > $(BIN_DIR)/$(MAIN)
 
 $(MAIN): $(SRC_DIR)/workflow.base
 	mkdir -p $(BIN_DIR)

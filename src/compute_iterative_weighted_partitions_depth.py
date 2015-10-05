@@ -26,22 +26,23 @@ def F(p):
 
 
 def parse_arguments(argv):
-	try:
-		opts, args = getopt.getopt(argv, 'i:l:p:o:y:n:t:')
-		if len(opts) < 7 or len(opts) > 7:
-			raise getopt.GetoptError('Give arguments')
-	except getopt.GetoptError:
-		print 'compute_iterative_weighted_partitions.py -i <hypergraphfile> -l <maxlevelcellfile> -p <partitionfile> -o <outputprefix> -y <nhalolayers> -n <nparts> -t <niterations>'
-		sys.exit(2)
-	for opt, arg in opts:
-		if opt in ('-i'): inputfile = arg
-		elif opt in ('-l'): depthfile = arg
-		elif opt in ('-o'): outputfile = arg
-		elif opt in ('-p'): partfile = arg
-		elif opt in ('-n'): nparts = int(arg)
-		elif opt in ('-t'): niter = int(arg)
-		elif opt in ('-y'): nhalos = int(arg)
-	return inputfile, depthfile, partfile, outputfile, nparts, niter, nhalos
+        try:
+            opts, args = getopt.getopt(argv, 'c:i:l:p:o:y:n:t:')
+            if len(opts) < 8 or len(opts) > 8:
+                raise getopt.GetoptError('Give arguments')
+        except getopt.GetoptError:
+            print 'compute_iterative_weighted_partitions.py -c <patoh_binary> -i <hypergraphfile> -l <maxlevelcellfile> -p <partitionfile> -o <outputprefix> -y <nhalolayers> -n <nparts> -t <niterations>'
+            sys.exit(2)
+        for opt, arg in opts:
+            if opt in ('-i'): inputfile = arg
+            elif opt in ('-c'): patoh = arg
+            elif opt in ('-l'): depthfile = arg
+            elif opt in ('-o'): outputfile = arg
+            elif opt in ('-p'): partfile = arg
+            elif opt in ('-n'): nparts = int(arg)
+            elif opt in ('-t'): niter = int(arg)
+            elif opt in ('-y'): nhalos = int(arg)
+        return patoh, inputfile, depthfile, partfile, outputfile, nparts, niter, nhalos
 
 
 def read_partitioning(partfile, parts):
@@ -114,7 +115,7 @@ def get_halo_candidates(data, cell, candidates, nlayers):
 
 
 def construct_parts_halos(data, nparts, parts, nlayers, halos):
-	print 'constructing halos with', nlayers, 'layers ...'
+	## print 'constructing halos with', nlayers, 'layers ...'
 	## collect cells in partitions
 	cells = {}
 	for p in range(0, nparts):
@@ -163,8 +164,8 @@ def compute_node_weights(nparts, parts, depths, halos, pneighbors, weights):
 	#print "*** nhalocells: ", nhalocells
 	#print "*** ncells: ", ncells
 	#print "*** total cells: ", ntotcells
-	print "*** total cells stats: ",
-	print_stats(ntotcells)
+	## print "*** total cells stats: ",
+	## print_stats(ntotcells)
 	## compute cost due to computations
 	local_comps = {}
 	halo_comps = {}
@@ -221,7 +222,9 @@ def print_stats(arr):
 	amax = pdarr.max()
 	amean = pdarr.mean()
 	astd = pdarr.std()
-	print 'total: ' + str(asum) + ', min: ' + str(amin) + ', max: ' + str(amax) + ', mean: ' + str(amean) + ', std: ' + str(astd) + ', imbalance: ' + str(1 - (float(amin) / amax))
+	print '\n++ Total weight: ' + str(asum)
+        print '++ Min: ' + str(amin) + ', Max: ' + str(amax) + ', Mean: ' + str(amean) + ', Std: ' + str(astd)
+        print '++ Imbalance: ' + str(1 - (float(amin) / amax))
 
 
 def write_weighted_hypergraph(filename, data, weights, nnodes, nnets, npins):
@@ -253,7 +256,7 @@ def write_parts(filename, parts):
 ## the main part
 
 
-infile, depthfile, partfile, outfile, nparts, niter, nlayers = parse_arguments(sys.argv[1:])
+patoh, infile, depthfile, partfile, outfile, nparts, niter, nlayers = parse_arguments(sys.argv[1:])
 #weight_factor = lambda x: int(x * 1)
 
 ## the first run
@@ -276,7 +279,7 @@ compute_node_weights(nparts, parts, depths, halos, pneighbors, weights)
 #weights = map(weight_factor, weights)
 totpweights = {}
 calculate_parts_total_weights(nparts, parts, weights, totpweights)
-print "*** total part weights: ", totpweights
+## print "*** total part weights: ", totpweights
 tmpoutfile = '.tmp.hypergraph'
 write_weighted_hypergraph(tmpoutfile, data, weights, nnodes, nnets, npins)
 
@@ -291,23 +294,23 @@ logfile = open('.tmp.log', 'w')
 final_parts = parts
 final_weights = weights
 
-#print "*** initial parts: ", parts
+## print "*** initial parts: ", parts
 totpweights = {}
 calculate_parts_total_weights(nparts, final_parts, weights, totpweights)
-print "*** initial total part weights: ", totpweights
-print "*** initial part weight stats: ",
+## print "*** initial total part weights: ", totpweights
+print "** Initial partitioning weight stats: ",
 print_stats(totpweights.values())
 
 for i in range(0, niter):
 	## perform partitioning
 
-	print "============== iteration", i, "============="
+	print "== Iteration", i, "=="
 	seed = random.randint(1, 400000)
-	cmd = '~/sw/patoh/build/Linux-x86_64/patoh ' + tmpoutfile + ' ' + str(nparts)
+	cmd = patoh + ' ' + tmpoutfile + ' ' + str(nparts)
 	#opts = 'UM=O PQ=S BO=C PA=3 RA=6 SD=' + str(seed)
 	opts = 'SD=' + str(seed)
 	cmd += ' ' + opts
-	print cmd
+	## print cmd
 	try:
 		ret = subprocess.check_call(cmd, shell=True, stderr=subprocess.STDOUT, stdout=logfile)
 	except subprocess.CalledProcessError:
@@ -339,26 +342,26 @@ for i in range(0, niter):
 	if differr > 0: accept = True
 	else:
 		prob = np.exp(differr / TEMPERATURE)
-		print '*** Acceptance probability: ' + str(prob)
+		## print '*** Acceptance probability: ' + str(prob)
 		if random.random() < prob: accept = True
 		else: accept = False;
 	
-	print "*** ERROR VALUE: " + str(newerr) + " [ " + str(err) + ' ]'
+	## print "*** ERROR VALUE: " + str(newerr) + " [ " + str(err) + ' ]'
 	if not accept:
-		print '*** rejecting partitioning'
-		print "*** rejected part weights: ", totpweights
-		print "*** rejected part weight stats: ",
-		print_stats(totpweights.values())
+		## print '*** rejecting partitioning'
+		## print "*** rejected part weights: ", totpweights
+		## print "*** rejected part weight stats: ",
+		## print_stats(totpweights.values())
 		continue
 
 	err = newerr
-	print '*** accepting partitioning'	
+	## print '*** accepting partitioning'	
 	final_parts = parts
 	final_weights = weights
 
-	print "*** total part weights: ", totpweights
-	print "*** part weight stats: ",
-	print_stats(totpweights.values())
+	## print "*** total part weights: ", totpweights
+	## print "*** part weight stats: ",
+	## print_stats(totpweights.values())
 
 	if i == niter: break
 
@@ -371,7 +374,7 @@ calculate_parts_total_weights(nparts, final_parts, final_weights, totpweights)
 partoutfile = outfile + '.part.' + str(nparts)
 write_parts(partoutfile, final_parts)
 
-print "*** final total part weights: ", totpweights
+## print "*** final total part weights: ", totpweights
 print "*** final part weight stats: ",
 print_stats(totpweights.values())
 

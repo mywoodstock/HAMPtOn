@@ -7,8 +7,8 @@ TEMP_DIR=ENV_TEMP_DIR
 PY_SCRIPTS=$BASE_DIR/src
 BIN_DIR=$BASE_DIR/bin
 
-if test "$#" -ne 3 | test "$#" -ne 4; then
-  echo "usage: hampton <grid_file> <graph_file> <num_parts> [<output_prefix>]";
+if test "$#" -ne 3 && test "$#" -ne 4 && test "$#" -ne 5; then
+  echo "usage: hampton <grid_file> <graph_file> <num_parts> [<output_prefix> [<num_iterations>]]";
   exit 1;
 fi
 
@@ -16,28 +16,47 @@ GRID_FILE=$1
 GRAPH_FILE=$2
 NUM_PARTS=$3
 
-if test "$#" -eq 4; then
+if test "$#" -eq 4 || test "$#" -eq 5; then
   OUTPUT_PREFIX=$4
 else
   OUTPUT_PREFIX=$GRAPH_FILE
 fi
 
+if test "$#" -eq 5; then
+  NUM_ITERS=$5
+else
+  NUM_ITERS=20
+fi
+
+HALO_DEPTH=3
+
 echo ""
-echo "**           Input Grid: $GRID_FILE"
-echo "**          Input Graph: $GRAPH_FILE"
-echo "** Number of Partitions: $NUM_PARTS"
+echo "**            Input Grid: $GRID_FILE"
+echo "**           Input Graph: $GRAPH_FILE"
+echo "**  Number of Partitions: $NUM_PARTS"
 echo ""
-echo "**   Output File Prefix: $OUTPUT_PREFIX"
-echo "**  Temporary Directory: $TEMP_DIR"
+echo "**  Number of Iterations: $NUM_ITERS"
+echo "**    Output File Prefix: $OUTPUT_PREFIX"
+echo "**   Temporary Directory: $TEMP_DIR"
 echo ""
 
-mkdir -p $TEMP_DIR
+mkdir -p $TEMP_DIR  \
+&&  \
 
-$BIN_DIR/depths $GRID_FILE $TEMP_DIR/depths.dat
-python $PY_SCRIPTS/convert_adj_to_sparse.py -i $GRAPH_FILE -o $TEMP_DIR/graph.sparse
-python $PY_SCRIPTS/symmetrize_sparse.py -i $TEMP_DIR/graph.sparse -o $TEMP_DIR/graph.sym.sparse
-$BIN_DIR/apowers $TEMP_DIR/graph.sym.sparse 3 1
-mv A*.patoh $TEMP_DIR/
-$PATOH_BIN $TEMP_DIR/A3.patoh $NUM_PARTS
-python $PY_SCRIPTS/convert_patoh_to_mpas.py -i $TEMP_DIR/A3.patoh.part.$NUM_PARTS -o $TEMP_DIR/A3.info.part.$NUM_PARTS
-python $PY_SCRIPTS/compute_iterative_weighted_partitions_depth.py -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t 20
+$BIN_DIR/depths $GRID_FILE $TEMP_DIR/depths.dat \
+&&  \
+python $PY_SCRIPTS/convert_adj_to_sparse.py -i $GRAPH_FILE -o $TEMP_DIR/graph.sparse  \
+&&  \
+python $PY_SCRIPTS/symmetrize_sparse.py -i $TEMP_DIR/graph.sparse -o $TEMP_DIR/graph.sym.sparse \
+&&  \
+$BIN_DIR/apowers $TEMP_DIR/graph.sym.sparse $HALO_DEPTH 1 \
+&&  \
+mv A*.patoh $TEMP_DIR/  \
+&&  \
+$PATOH_BIN $TEMP_DIR/A3.patoh $NUM_PARTS  \
+&&  \
+python $PY_SCRIPTS/convert_patoh_to_mpas.py -i $TEMP_DIR/A3.patoh.part.$NUM_PARTS -o $TEMP_DIR/A3.info.part.$NUM_PARTS  \
+&&  \
+python $PY_SCRIPTS/compute_iterative_weighted_partitions_depth.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
+&&  \
+rm -f .tmp.*
