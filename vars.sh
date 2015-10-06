@@ -2,12 +2,12 @@
 
 ## mandatory environmental variables
 
-export NETCDF_DIR=/usr
-export COMBBLAS_DIR=$HOME/sw/CombBLAS
+export NETCDF_DIR=/usr/local/netcdf
+export COMBBLAS_DIR=/usr/local/CombBLAS
 
-export PATOH_BIN=$HOME/sw/patoh/build/Linux-x86_64/patoh
+export PATOH_BIN=/usr/local/patoh/build/Linux-x86_64/patoh
 
 ## optional environmental variables
 
-export BASE_DIR=$HOME/mpas/HAMPtOn.git
-export TEMP_DIR=/tmp/HAMPtOn
+export BASE_DIR=$HOME/HAMPtOn
+export TEMP_DIR=/tmp/hampton
