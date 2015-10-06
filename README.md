@@ -1,5 +1,5 @@
 
-# HAMPtOn: README #
+# HAMPtOn: README
 
 HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be used with MPAS meshes.
 
@@ -22,12 +22,12 @@ HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be use
         BASE_DIR=/path/to/root/of/this/tool
         TEMP_DIR=/path/to/temporary/space
 
-  `BASE_DIR` and `TEMP_DIR` are optional. Default values for these are the current directory and `/tmp/HAMPtOn`, respectively. For example, have a look at the file `vars.sh`.
+  `BASE_DIR` and `TEMP_DIR` are optional. Default values for these are the current directory and `/tmp`, respectively. For example, have a look at the file `vars.sh`.
 
   3. Use `make` to compile the tools:
 
         $ make
-  
+ 
   The default compiler is `mpicxx`. To use a different MPI C++ compiler, use:
 
         $ make MPICXX=<compiler>
