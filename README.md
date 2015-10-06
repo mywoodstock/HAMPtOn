@@ -12,21 +12,21 @@ HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be use
   1. Make sure the above dependencies are installed.
   2. Define the following environment variables:
 
-    NETCDF_DIR=/path/to/netcdf/install/directory
-    COMBBLAS_DIR=/path/to/combblas/directory
-    PATOH_BIN=/path/to/patoh/binary/location
-    BASE_DIR=/path/to/root/of/this/tool
-    TEMP_DIR=/path/to/temporary/space
+        NETCDF_DIR=/path/to/netcdf/install/directory
+        COMBBLAS_DIR=/path/to/combblas/directory
+        PATOH_BIN=/path/to/patoh/binary/location
+        BASE_DIR=/path/to/root/of/this/tool
+        TEMP_DIR=/path/to/temporary/space
 
   `BASE_DIR` and `TEMP_DIR` are optional. Default values for these are the current directory and `/tmp/HAMPtOn`, respectively. For example, have a look at the file `vars.sh`.
 
   3. Use `make` to compile the tools:
 
-    $ make
+        $ make
   
   The default compiler is `mpicxx`. To use a different MPI C++ compiler, use:
 
-    $ make MPICXX=<compiler>
+        $ make MPICXX=<compiler>
 
   4. On successful compilation, a `bin` directory will be created containing four binaries/scripts. You only need to worry about and use `hampton`.
 
@@ -34,7 +34,7 @@ HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be use
 ## Usage
  The generated `hampton` script when executed will perform a series of steps in order to generate a halo-aware partitioning and SFC-based data re-ordered mesh files. It takes sevaral arguments:
 
-   hampton <grid_file> <graph_file> <num_parts> [<output_prefix> [<num_iterations> [<ordering_type>]]]
+       hampton <grid_file> <graph_file> <num_parts> [<output_prefix> [<num_iterations> [<ordering_type>]]]
  
  Here, the required arguments are:
  1. `<grid_file>`: The input grid/mesh file. These are generally the `.nc` files (in netCDF format).
@@ -47,7 +47,7 @@ HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be use
 
  For example:
 
-     $ ./bin/hampton grid.nc graph.info 64 newmesh
+         $ ./bin/hampton grid.nc graph.info 64 newmesh
 
   This will generate a new mesh file named `newmesh.64.nc`, a new graph file named `newmesh.64.info`, and a partitioning file named `newmesh.64.info.part.64`.
 
