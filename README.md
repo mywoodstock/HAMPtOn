@@ -43,23 +43,23 @@ HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be use
 
  The generated `hampton` script when executed will perform a series of steps in order to generate a halo-aware partitioning and SFC-based data re-ordered mesh files. It takes sevaral arguments:
 
-       hampton <grid_file> <graph_file> <num_parts> [<output_prefix> [<num_iterations> [<ordering_type>]]]
+    hampton <grid_file> <graph_file> <num_parts> [<output_prefix> [<num_iterations> [<ordering_type>]]]
  
- Here, the required arguments are:
+Here, the required arguments are:
  1. `<grid_file>`: The input grid/mesh file. These are generally the `.nc` files (in netCDF format).
  2. `<graph_file>`: The input file describing the mesh graph. These are generally named `graph.info` in the MPAS inputs.
  3. `<num_parts>`: The number of partitions to create.
 
- The following are optional arguments, provided to give you more control over the process:
+The following are optional arguments, provided to give you more control over the process:
 
  4. `<output_prefix>`: A string which will be used as prefix in the generated output files. Default value is same as the `<graph_file>`.
  5. `<num_iterations>`: The number of iterations to perform in the monte-carlo process for convergence. Default value is 20.
  6. `<ordering_type>`: A string from the set `{ hilbert, morton, peano, random, xyz }`. This specifies the type of data re-ordering to perform. Default value is `hilbert`.
 
- For example:
+For example:
 
-         $ ./bin/hampton grid.nc graph.info 64 newmesh
+     $ ./bin/hampton grid.nc graph.info 64 newmesh
 
-  This will generate a new mesh file named `newmesh.64.nc`, a new graph file named `newmesh.64.info`, and a partitioning file named `newmesh.64.info.part.64`.
+  This will generate a output mesh file named `newmesh.64.nc`, a graph file named `newmesh.64.info`, and a partitioning file named `newmesh.64.info.part.64`.
 
-  The generated mesh, graph and partitioning files can then be directly used in your application. For MPAS, just update the file names in the `namelist.ocean` and `streams.ocean` input files, and you are good to go.
+  The generated mesh, graph and partitioning files can then be directly used in your application. For MPAS-Ocean, just update the file names in the `namelist.ocean` and `streams.ocean` input files, and you are good to go.
