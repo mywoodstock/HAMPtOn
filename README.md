@@ -20,23 +20,23 @@ HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be use
   1. Make sure the above dependencies are installed.
   2. Define the following environment variables:
 
-        NETCDF_DIR=/path/to/netcdf/install/directory
-        COMBBLAS_DIR=/path/to/combblas/directory
-        PATOH_BIN=/path/to/patoh/binary/location
-        BASE_DIR=/path/to/root/of/this/tool
-        TEMP_DIR=/path/to/temporary/space
+        NETCDF_DIR    = /path/to/netcdf/install/directory
+        COMBBLAS_DIR  = /path/to/combblas/directory
+        PATOH_BIN     = /path/to/patoh/binary/location
+        BASE_DIR      = /path/to/root/of/this/tool
+        TEMP_DIR      = /path/to/temporary/space
 
   `BASE_DIR` and `TEMP_DIR` are optional. Default values for these are the current directory and `/tmp`, respectively. For example, have a look at the file `vars.sh`.
 
-  3. Use `make` to compile the tools:
+  3. Use `make` to build and install the tools:
 
         $ make
- 
+
   The default compiler is `mpicxx`. To use a different MPI C++ compiler, use:
 
         $ make MPICXX=<compiler>
 
-  4. On successful compilation, a `bin` directory will be created containing four binaries/scripts. You only need to worry about and use `hampton`.
+  4. On successful compilation, a `bin` directory is created containing four binaries/scripts. You only need to worry about and use `hampton`.
 
 
 ## Usage
