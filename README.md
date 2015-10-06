@@ -5,9 +5,9 @@ HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be use
 
 ## Dependencies
 
-  1. **NetCDF** `http://www.unidata.ucar.edu/downloads/netcdf`
-  2. **CombBLAS** `http://gauss.cs.ucsb.edu/~aydin/CombBLAS`
-  3. **PaToH** `http://bmi.osu.edu/umit/software.html`
+  1. **NetCDF** http://www.unidata.ucar.edu/downloads/netcdf
+  2. **CombBLAS** http://gauss.cs.ucsb.edu/~aydin/CombBLAS
+  3. **PaToH** http://bmi.osu.edu/umit/software.html
 
 ## Installation
 
