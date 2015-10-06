@@ -26,7 +26,7 @@ SRC_DIR = src
 BIN_DIR = bin
 OPT_FLAGS = -O3
 DEBUG_FLAGS = -g
-CXX_FLAGS = -std=c++11
+CXX_FLAGS = -std=c++11 -D_64BITOFFSET
 
 INCL1_FLAGS = -I$(NETCDF)/include
 INCL2_FLAGS = -I$(COMBBLAS)
@@ -37,10 +37,20 @@ LIBS2_FLAGS = -L$(COMBBLAS) -lCommGridlib -lMPITypelib -lMemoryPoollib
 
 OBJ1 = $(SRC_DIR)/netcdf_utils.o $(SRC_DIR)/extract_max_level_cell.o
 OBJ2 = $(SRC_DIR)/APowers.o
+OBJ3 = $(SRC_DIR)/netcdf_utils.o					\
+			 $(SRC_DIR)/mpas_ordering.o					\
+			 $(SRC_DIR)/mpas_order.o						\
+			 $(SRC_DIR)/mpas_ordering_utils.o		\
+			 $(SRC_DIR)/mpas_ordering_xyzsort.o	\
+			 $(SRC_DIR)/mpas_ordering_random.o	\
+			 $(SRC_DIR)/mpas_ordering_morton.o	\
+			 $(SRC_DIR)/mpas_ordering_hilbert.o	\
+			 $(SRC_DIR)/mpas_ordering_peano.o
 DEPS_HPP = $(SRC_DIR)/netcdf_utils.h
 
 BIN1 = depths
 BIN2 = apowers
+BIN3 = mpasorder
 MAIN = hampton
 
 REQUIRED = check-NETCDF_DIR check-COMBBLAS_DIR check-PATOH_BIN
@@ -48,13 +58,13 @@ OPTIONAL = test-BASE_DIR test-TEMP_DIR
 TESTALL = $(REQUIRED) $(OPTIONAL)
 
 all: CXX_FLAGS+=$(OPT_FLAGS)
-all: $(TESTALL) $(BIN1) $(BIN2) $(MAIN)
+all: $(TESTALL) $(BIN1) $(BIN2) $(BIN3) $(MAIN)
 
 debug: CXX_FLAGS+=$(DEBUG_FLAGS)
-debug: $(TESTALL) $(BIN1) $(BIN2) $(MAIN)
+debug: $(TESTALL) $(BIN1) $(BIN2) $(BIN3) $(MAIN)
 
 clean:
-	rm -f $(OBJ1) $(OBJ2) $(BIN_DIR)/$(BIN1) $(BIN_DIR)/$(BIN2) $(BIN_DIR)/$(MAIN)
+	rm -f $(OBJ1) $(OBJ2) $(OBJ3) $(BIN_DIR)/$(BIN1) $(BIN_DIR)/$(BIN2) $(BIN_DIR)/$(BIN3) $(BIN_DIR)/$(MAIN)
 	rmdir $(BIN_DIR)
 
 $(BIN1): $(OBJ1)
@@ -64,6 +74,10 @@ $(BIN1): $(OBJ1)
 $(BIN2): $(OBJ2)
 	mkdir -p $(BIN_DIR)
 	$(CXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS2_FLAGS)
+
+$(BIN3): $(OBJ3)
+	mkdir -p $(BIN_DIR)
+	$(CXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS1_FLAGS)
 
 $(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS_HPP)
 	$(CXX) -c $< -o $@ $(CXX_FLAGS) $(CXX_INCL)

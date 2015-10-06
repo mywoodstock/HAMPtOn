@@ -7,8 +7,8 @@ TEMP_DIR=ENV_TEMP_DIR
 PY_SCRIPTS=$BASE_DIR/src
 BIN_DIR=$BASE_DIR/bin
 
-if test "$#" -ne 3 && test "$#" -ne 4 && test "$#" -ne 5; then
-  echo "usage: hampton <grid_file> <graph_file> <num_parts> [<output_prefix> [<num_iterations>]]";
+if test "$#" -ne 3 && test "$#" -ne 4 && test "$#" -ne 5 && test "$#" -ne 6; then
+  echo "usage: hampton <grid_file> <graph_file> <num_parts> [<output_prefix> [<num_iterations> [<ordering_type>]]]";
   exit 1;
 fi
 
@@ -16,16 +16,22 @@ GRID_FILE=$1
 GRAPH_FILE=$2
 NUM_PARTS=$3
 
-if test "$#" -eq 4 || test "$#" -eq 5; then
+if test "$#" -eq 4 || test "$#" -eq 5 || test "$#" -eq 6; then
   OUTPUT_PREFIX=$4
 else
   OUTPUT_PREFIX=$GRAPH_FILE
 fi
 
-if test "$#" -eq 5; then
+if test "$#" -eq 5 || test "$#" -eq 6; then
   NUM_ITERS=$5
 else
   NUM_ITERS=20
+fi
+
+if test "$#" -eq 6; then
+  ORDERING_TYPE=$6
+else
+  ORDERING_TYPE="hilbert"
 fi
 
 HALO_DEPTH=3
@@ -36,6 +42,7 @@ echo "**           Input Graph: $GRAPH_FILE"
 echo "**  Number of Partitions: $NUM_PARTS"
 echo ""
 echo "**  Number of Iterations: $NUM_ITERS"
+echo "**         Ordering Type: $ORDERING_TYPE"
 echo "**    Output File Prefix: $OUTPUT_PREFIX"
 echo "**   Temporary Directory: $TEMP_DIR"
 echo ""
@@ -57,6 +64,8 @@ $PATOH_BIN $TEMP_DIR/A3.patoh $NUM_PARTS  \
 &&  \
 python $PY_SCRIPTS/convert_patoh_to_mpas.py -i $TEMP_DIR/A3.patoh.part.$NUM_PARTS -o $TEMP_DIR/A3.info.part.$NUM_PARTS  \
 &&  \
-python $PY_SCRIPTS/compute_iterative_weighted_partitions_depth.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
+python $PY_SCRIPTS/compute_iterative_weighted_partitions_depth.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $TEMP_DIR/$OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
 &&  \
-rm -f .tmp.*
+rm -f .tmp.*  \
+&&  \
+$BIN_DIR/mpasorder $GRID_FILE $GRAPH_FILE $OUTPUT_PREFIX $TEMP_DIR/$OUTPUT_PREFIX.part.$NUM_PARTS $ORDERING_TYPE
