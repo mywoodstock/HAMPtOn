@@ -1,4 +1,6 @@
 
+MPICXX = mpicxx
+
 TEMP_DIR_DEFAULT = /tmp
 BASE_DIR_DEFAULT = ${PWD}
 
@@ -11,7 +13,7 @@ check-%:
 test-%:
 	@ if test -z ${${*}}; then \
 		echo "Environment variable $* not set. Using default ${*}=${${*}_DEFAULT}"; \
-		export ${*}=${${*}}_DEFAULT; \
+		export ${*}=${${*}_DEFAULT}; \
 	fi
 
 NETCDF = ${NETCDF_DIR}
@@ -19,8 +21,6 @@ COMBBLAS = ${COMBBLAS_DIR}
 PATOHBIN = ${PATOH_BIN}
 BASEDIR = ${BASE_DIR}
 TEMPDIR = ${TEMP_DIR}
-
-CXX = mpicxx
 
 SRC_DIR = src
 BIN_DIR = bin
@@ -69,18 +69,18 @@ clean:
 
 $(BIN1): $(OBJ1)
 	mkdir -p $(BIN_DIR)
-	$(CXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS1_FLAGS)
+	$(MPICXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS1_FLAGS)
 
 $(BIN2): $(OBJ2)
 	mkdir -p $(BIN_DIR)
-	$(CXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS2_FLAGS)
+	$(MPICXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS2_FLAGS)
 
 $(BIN3): $(OBJ3)
 	mkdir -p $(BIN_DIR)
-	$(CXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS1_FLAGS)
+	$(MPICXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS1_FLAGS)
 
 $(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS_HPP)
-	$(CXX) -c $< -o $@ $(CXX_FLAGS) $(CXX_INCL)
+	$(MPICXX) -c $< -o $@ $(CXX_FLAGS) $(CXX_INCL)
 
 
 $(MAIN): $(SRC_DIR)/workflow.base
