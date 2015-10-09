@@ -10,7 +10,6 @@
 import sys, getopt
 import subprocess
 import numpy as np
-import pandas as pd
 import random
 
 from sets import Set
@@ -216,15 +215,15 @@ def calculate_parts_total_weights(nparts, parts, weights, pweights):
 
 
 def print_stats(arr):
-	pdarr = pd.Series(arr)
-	asum = pdarr.sum()
-	amin = pdarr.min()
-	amax = pdarr.max()
-	amean = pdarr.mean()
-	astd = pdarr.std()
-	print '\n++ Total weight: ' + str(asum)
-        print '++ Min: ' + str(amin) + ', Max: ' + str(amax) + ', Mean: ' + str(amean) + ', Std: ' + str(astd)
-        print '++ Imbalance: ' + str(1 - (float(amin) / amax))
+  pdarr = np.array(arr)
+  asum = pdarr.sum()
+  amin = pdarr.min()
+  amax = pdarr.max()
+  amean = pdarr.mean()
+  astd = pdarr.std()
+  print '\n++ Total weight: ' + str(asum)
+  print '++ Min: ' + str(amin) + ', Max: ' + str(amax) + ', Mean: ' + str(amean) + ', Std: ' + str(astd)
+  print '++ Imbalance: ' + str(1 - (float(amin) / amax))
 
 
 def write_weighted_hypergraph(filename, data, weights, nnodes, nnets, npins):
