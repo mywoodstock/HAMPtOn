@@ -16,6 +16,9 @@ test-%:
 		export ${*}=${${*}_DEFAULT}; \
 	fi
 
+BASE_DIR ?= $(BASE_DIR_DEFAULT)
+TEMP_DIR ?= $(TEMP_DIR_DEFAULT)
+
 NETCDF = ${NETCDF_DIR}
 COMBBLAS = ${COMBBLAS_DIR}
 PATOHBIN = ${PATOH_BIN}
