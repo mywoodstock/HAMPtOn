@@ -67,11 +67,15 @@ $PATOH_BIN $TEMP_DIR/A3.patoh $NUM_PARTS  \
 &&  \
 python $PY_SCRIPTS/convert_patoh_to_mpas.py -i $TEMP_DIR/A3.patoh.part.$NUM_PARTS -o $TEMP_DIR/A3.info.part.$NUM_PARTS  \
 &&  \
-python $PY_SCRIPTS/compute_iterative_weighted_partitions_depth.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $TEMP_DIR/$OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
-&&  \
-rm -f .tmp.*  \
-&&  \
-if [ $ORDERING_TYPE!="none" ];
+if [ $ORDERING_TYPE="none" ];
 then
+  python $PY_SCRIPTS/compute_iterative_weighted_partitions_depth.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
+  &&  \
+  rm -f .tmp.*
+else
+  python $PY_SCRIPTS/compute_iterative_weighted_partitions_depth.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $TEMP_DIR/$OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
+  &&  \
+  rm -f .tmp.*  \
+  &&  \
   $BIN_DIR/mpasorder $GRID_FILE $GRAPH_FILE $OUTPUT_PREFIX $TEMP_DIR/$OUTPUT_PREFIX.part.$NUM_PARTS $ORDERING_TYPE
 fi
