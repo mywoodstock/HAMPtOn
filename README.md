@@ -8,21 +8,27 @@ HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be use
   1. [**NetCDF**] [netcdf]
   2. [**CombBLAS**] [combblas]
   3. [**PaToH**] [patoh]
+  4. [**METIS**] [metis]
 
   [netcdf]: http://www.unidata.ucar.edu/downloads/netcdf    "NetCDF"
   [combblas]: http://gauss.cs.ucsb.edu/~aydin/CombBLAS      "Combinatorial BLAS"
   [patoh]: http://bmi.osu.edu/umit/software.html            "PaToH"
+  [metis]: http://glaros.dtc.umn.edu/gkhome/views/metis     "METIS"
+
+  *Note:* MPI library is a requirement of CombBLAS.
+  *Note:* Either one of [PaToH][patoh] or [METIS][metis] is required. Pros and cons of each are discussed below.
 
 ## Installation
 
-  To install the tool, perform the following steps in order.
+  To install the tool, follow the steps given below.
 
   1. Make sure the above dependencies are installed.
   2. Define the following environment variables:
 
+        PATOH_BIN     = /path/to/patoh/binary/location
+        METIS_BIN     = /path/to/metis/binary/location
         NETCDF_DIR    = /path/to/netcdf/install/directory
         COMBBLAS_DIR  = /path/to/combblas/directory
-        PATOH_BIN     = /path/to/patoh/binary/location
         BASE_DIR      = /path/to/root/of/this/tool
         TEMP_DIR      = /path/to/temporary/space
 
@@ -63,3 +69,9 @@ For example:
   This will generate a output mesh file named `newmesh.64.nc`, a graph file named `newmesh.64.info`, and a partitioning file named `newmesh.64.info.part.64`.
 
   The generated mesh, graph and partitioning files can then be directly used in your application. For MPAS-Ocean, just update the file names in the `namelist.ocean` and `streams.ocean` input files, and you are good to go.
+
+
+## PaToH or METIS?
+ 
+ Discussion about pros and cons of both partitioners will come here some day.
+
