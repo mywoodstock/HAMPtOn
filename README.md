@@ -15,9 +15,9 @@ HAMPtOn is a Halo-Aware Mesh Partitioning and Ordering tool, typically to be use
   [patoh]: http://bmi.osu.edu/umit/software.html            "PaToH"
   [metis]: http://glaros.dtc.umn.edu/gkhome/views/metis     "METIS"
 
-  *Note:* MPI library is a requirement of CombBLAS.
+  **Note 1:** MPI library is a requirement of CombBLAS.
   
-  *Note:* Either one of [PaToH][patoh] or [METIS][metis] is required. Pros and cons of each are discussed below.
+  **Note 2:** Either one of [PaToH][patoh] or [METIS][metis] is required. Pros and cons of each are discussed below.
 
 ## Installation
 
