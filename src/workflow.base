@@ -69,11 +69,11 @@ python $PY_SCRIPTS/convert_patoh_to_mpas.py -i $TEMP_DIR/A3.patoh.part.$NUM_PART
 &&  \
 if [ $ORDERING_TYPE="none" ];
 then
-  python $PY_SCRIPTS/compute_iterative_weighted_partitions_depth.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
+  python $PY_SCRIPTS/compute_hypergraph_halo_depth_aware_partitioning.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
   &&  \
   rm -f .tmp.*
 else
-  python $PY_SCRIPTS/compute_iterative_weighted_partitions_depth.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $TEMP_DIR/$OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
+  python $PY_SCRIPTS/compute_hypergraph_halo_depth_aware_partitioning.py -c $PATOH_BIN -i $TEMP_DIR/A3.patoh -l $TEMP_DIR/depths.dat -p $TEMP_DIR/A3.info.part.$NUM_PARTS -o $TEMP_DIR/$OUTPUT_PREFIX -y 1 -n $NUM_PARTS -t $NUM_ITERS \
   &&  \
   rm -f .tmp.*  \
   &&  \
