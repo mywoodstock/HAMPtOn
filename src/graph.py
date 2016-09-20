@@ -15,17 +15,23 @@
  ##
 
 import sys
+import numpy as np
+
+from sets import Set
 
 class Graph:
 
-  nodelist = {}             ## map of "nodeid => { 'neighbors': nodelist, 'partition': partition }"
-  partitions = {}           ## map of "partition => nodelist"
-
   def __init__(self):
-    self.partitions[0] = []
+    self.nodelist = {}     ## map of "nodeid => { 'neighbors': nodelist, 'partition': partition }"
+    self.partitions = {}   ## map of "partition => nodelist"
+    self.total_num_nodes = 0
+    self.total_num_edges = 0
   
   def num_nodes(self):
     return len(self.nodelist)
+
+  def num_edges(self):
+    return self.total_num_edges
 
   def neighbor_nodes(self, node):
     if node not in self.nodelist: return []
@@ -37,7 +43,7 @@ class Graph:
   
   def nodes_in_partition(self, part):
     if part not in self.partitions: return []
-    return self.partitions[part]
+    return self.partitions[part]['nodes']
   
   def num_nodes_in_partition(self, part):
     if part not in self.partitions: return 0
@@ -47,17 +53,17 @@ class Graph:
     return len(self.partitions)
     
   def read_graph(self, infile):
-    print 'reading graph file', infile, '...'
+    print 'reading graph...'
     booleanify = lambda x: True if x == '1' else False
     gg = open(infile)
     line = gg.readline()            ## first line has num nodes, num edges, format, and num constraints
     words = line.strip().split()
-    num_nodes = int(words[0])
-    num_edges = int(words[1])
+    self.total_num_nodes = int(words[0])
+    self.total_num_edges = int(words[1])
     has_vertex_sizes, has_vertex_weights, has_edge_weights = False, False, False
     num_vertex_weights = 0
     if len(words) > 2:
-      digits = words[2].split('')
+      digits = [ w for w in words[2] ]
       if len(digits) != 3: sys.exit(2)
       [ has_vertex_sizes, has_vertex_weights, has_edge_weights ] = map(booleanify, digits)
       if len(words) > 3: num_vertex_weights = int(words[3])
@@ -74,7 +80,7 @@ class Graph:
         self.nodelist[nodeid]['size'] = words[index]
         index += 1
       if has_vertex_weights:
-        self.nodelist[nodeid]['weights'] = words[index:num_vertex_weights+index]
+        self.nodelist[nodeid]['weight'] = words[index:num_vertex_weights+index]
         index += num_vertex_weights
       if has_edge_weights:
         neighbors = words[index::2]
@@ -85,30 +91,43 @@ class Graph:
       self.nodelist[nodeid]['neighbors'] = zip(neighbors, edgeweights)
       if 'partition' not in self.nodelist[nodeid]: self.nodelist[nodeid]['partition'] = 0   ## initialize
     gg.close()
-    if nodeid != num_nodes:
+    if nodeid != self.total_num_nodes:
 			print 'error: number of nodes mismatch in graph file'
 			sys.exit(2)
   
-  def read_weights(self, infile):
-    print 'reading weights file', infile, '...'
+  def read_weights(self, wfile=None, weights=None, sfile=None, sizes=None):
+    print 'initializing weights...'
+    ## node weights: local weight, outside weight (computation)
+    ## node size (communication volume)
+    if wfile is not None:
+      ff = open(wfile)
+      nodeid = 0
+      while True:
+        line = ff.readline()
+        if not line: break
+        words = line.strip().split()
+        if len(words) > 0:
+          for word in words:
+            nodeid += 1
+            self.nodelist[nodeid]['weight'] = [ float(word), 0. ]
+      ff.close()
+    else:
+      if weights is None: weights = 1.
+      for nodeid in range(1, self.num_nodes()+1):
+        self.nodelist[nodeid]['weight'] = [ weights, 0. ]
+    if sfile is not None:
+      print 'uh-oh: reading sizes from a file has not been implemented!'
+    else:
+      if sizes is None: sizes = 1.
+      for nodeid in range(1, self.num_nodes()+1):
+        self.nodelist[nodeid]['size'] = sizes
+
+  def read_partitions(self, infile):
+    print 'reading partitions...'
     ff = open(infile)
     nodeid = 0
     while True:
       line = ff.readline()
-      if not line: break
-      words = line.strip().split()
-      if len(words) > 0:
-        for word in words:
-          nodeid += 1
-          nodelist[nodeid]['weight'] = float(word)
-    ff.close()
-
-  def read_partitions(self, infile):
-    print 'reading partitions file', infile, '...'
-    pp = open(infile)
-    nodeid = 0
-    while True:
-      line = pp.readline()
       if not line: break
       parts = map(int, line.strip().split())
       for part in parts:
@@ -121,16 +140,17 @@ class Graph:
         self.partitions[part]['nodes'].add(nodeid)
         if nodeid not in self.nodelist: self.nodelist[nodeid] = {}
         self.nodelist[nodeid]['partition'] = part
-    pp.close()
+    ff.close()
 
   def get_halo_candidates(self, candidates, node, nlayers):
-		for neighbor in self.nodelist[node]:
+		for (neighbor, eweight) in self.nodelist[node]['neighbors']:
 			candidates.add(neighbor)
 			if nlayers > 0: self.get_halo_candidates(candidates, neighbor, nlayers-1)
 
   def compute_halos(self, nlayers):
-		print "computing halos ..."
-		for part in range(0, self.num_partitions()):
+    print "computing halos ..."
+    if nlayers < 1: return
+    for part in range(0, self.num_partitions()):
 			candidates = set()
 			for node in self.nodes_in_partition(part):
 				self.get_halo_candidates(candidates, node, nlayers)
@@ -139,34 +159,63 @@ class Graph:
   def compute_part_neighbors(self):
 		for part, pdata in self.partitions.iteritems():
 			for hnode in pdata['halo_nodes']:
-				pdata['neighbors'].add(nodelist[hnode]['partition'])
+				self.partitions[part]['neighbors'].add(self.nodelist[hnode]['partition'])
+
+  def compute_local_weights(self):
+    local_weights = {}
+    for p in range(0, self.num_partitions()):
+      pnodes = self.partitions[p]['nodes']
+      local_weights[p] = np.array([self.nodelist[nodeid]['weight'][0] for nodeid in pnodes]).sum()
+    return local_weights
+
+  def compute_halo_weights(self):
+    halo_weights = {}
+    for p in range(0, self.num_partitions()):
+      pnodes = self.partitions[p]['halo_nodes']
+      halo_weights[p] = np.array([self.nodelist[nodeid]['weight'][0] for nodeid in pnodes]).sum()
+    return halo_weights
+
+  def update_local_weights(self, weights):
+    for p in range(0, self.num_partitions()):
+      pnodes = self.partitions[p]['nodes']
+      hweight = float(weights[p]) / len(pnodes)
+      for nodeid in pnodes:
+        self.nodelist[nodeid]['weight'][1] = hweight + self.nodelist[nodeid]['weight'][0]
+
+  def compute_halo_volumes(self):
+    halo_volumes = {}
+    for p in range(0, self.num_partitions()):
+      pnodes = self.partitions[p]['halo_nodes']
+      sizes = np.array([self.nodelist[nodeid]['size'] for nodeid in pnodes])
+      halo_volumes[p] = sizes.sum()
+    return halo_volumes
 
   def print_statistics(self):
 		num_parts = self.num_partitions()
 		temp_part_num_cells = []
 		temp_part_num_halo_cells = []
 		temp_part_num_neighbors = []
-		for part, partdata in self.graph['partitions'].iteritems():
-			temp_part_num_cells.append(len(partdata['cells']))
-			temp_part_num_halo_cells.append(len(partdata['halo_cells']))
+		for part, partdata in self.partitions.iteritems():
+			temp_part_num_cells.append(len(partdata['nodes']))
+			temp_part_num_halo_cells.append(len(partdata['halo_nodes']))
 			temp_part_num_neighbors.append(len(partdata['neighbors']))
 		part_num_cells = np.array(temp_part_num_cells)
 		part_num_halo_cells = np.array(temp_part_num_halo_cells)
 		part_num_neighbors = np.array(temp_part_num_neighbors)
 		part_total_num_cells = part_num_cells + part_num_halo_cells
-		print ("**            num cells:"
+		print ("**            num nodes:"
 				+ " min = " + str(part_num_cells.min())
 				+ " max = " + str(part_num_cells.max())
 				+ " mean = " + str(part_num_cells.mean())
 				+ " std-dev = "	+ str(part_num_cells.std())
 				+ " imbalance = " + str(1.0 - float(part_num_cells.min())/part_num_cells.max()))
-		print ("**       num halo cells:"
+		print ("**       num halo nodes:"
 				+ " min = " + str(part_num_halo_cells.min())
 				+ " max = " + str(part_num_halo_cells.max())
 				+ " mean = " + str(part_num_halo_cells.mean())
 				+ " std-dev = " + str(part_num_halo_cells.std())
 				+ " imbalance = " + str(1.0 - float(part_num_halo_cells.min())/part_num_halo_cells.max()))
-		print ("**      total num cells:"
+		print ("**      total num nodes:"
 				+ " min = " + str(part_total_num_cells.min())
 				+ " max = " + str(part_total_num_cells.max())
 				+ " mean = " + str(part_total_num_cells.mean())
@@ -178,24 +227,44 @@ class Graph:
 				+ " mean = " + str(part_num_neighbors.mean())
 				+ " std-dev = " + str(part_num_neighbors.std())
 				+ " imbalance = " + str(1.0 - float(part_num_neighbors.min())/part_num_neighbors.max()))
-		nparts = len(self.graph['partitions'])
+		nparts = len(self.partitions)
 
   def print_detailed_statistics(self):
 		print "** partitions data:"
-		for part, pdata in self.graph['partitions'].iteritems():
-			ncells = len(pdata['cells'])
-			nhcells = len(pdata['halo_cells'])
+		for part, pdata in self.partitions.iteritems():
+			ncells = len(pdata['nodes'])
+			nhcells = len(pdata['halo_nodes'])
 			nneighbors = len(pdata['neighbors'])
-			print ("    partition " + str(part) + " :: cells = " + str(ncells)
-					+ " :: halo cells = " + str(nhcells)
-					+ " :: total cells = " + str(nhcells + ncells)
+			print ("    partition " + str(part) + " :: nodes = " + str(ncells)
+					+ " :: halo nodes = " + str(nhcells)
+					+ " :: total nodess = " + str(nhcells + ncells)
 					+ " :: neighbors = " + str(nneighbors))
 		self.print_statistics()
 
   def printall(self):
     print self.nodelist
     print self.partitions
-  
+
+  def save_graph(self, filename):
+    flatten_neighbors = lambda (v, e): str(v) + '\t' + str(int(e))
+    ff = open(filename, 'w')
+    header = '%d %d 111 1\n' % (self.num_nodes(), self.num_edges())
+    ff.write(header)
+    for nodeid in range(1,self.num_nodes()+1):
+      rec = ''
+      rec += str(int(self.nodelist[nodeid]['size'])) + '\t'
+      rec += str(int(self.nodelist[nodeid]['weight'][1])) + '\t'
+      rec += '\t'.join(map(flatten_neighbors, self.nodelist[nodeid]['neighbors']))
+      rec += '\n'
+      ff.write(rec)
+    ff.close()
+
+  def save_partitioning(self, filename):
+    ff = open(filename, 'w')
+    part_list = [ str(self.nodelist[n]['partition']) for n in range(1, self.num_nodes()+1) ]
+    ff.write('\n'.join(part_list) + '\n')
+    ff.close()
+
   def save_partition_info(self, oprefix):
 		## save halos and partition neighbor graph
 		hfilename = oprefix + '_partition_halos.info'
@@ -244,7 +313,3 @@ class Graph:
 		if nparts != part:
 			print 'error: mismatching number of partitions'
 			sys.exit(2)
-
-
-if __name__ == '__main__':
-  sys.exit(0)

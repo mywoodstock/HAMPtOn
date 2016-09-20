@@ -33,168 +33,114 @@ MAX_DEPTH = 40
 class Partitioner:
   
   def __init__(self):
-    self.ap = argparse.ArgumentParser()
-    self.ap.add_argument('-i','--input', help='input graph file', required=True, type=file)
-    self.ap.add_argument('-m','--metis', help='metis binary path', required=True)
-    self.ap.add_argument('-w','--weight', help='input graph weight/depth file', required=False, type=file, default=None)
-    self.ap.add_argument('-p','--partinit', help='initial partitioning file', required=False, type=file, default=None)
-    self.ap.add_argument('-o','--output', help='output file prefix', required=True)
-    self.ap.add_argument('-y','--nlayers', help='number of halo layers', required=False, default=0, choices=[0, 1, 2, 3], type=int)
-    self.ap.add_argument('-n','--nparts', help='number of partitions', required=True, type=int)
-    self.ap.add_argument('-t','--niters', help='number of iterations', required=False, default=10, type=int)
-    self.ap.add_argument('-v', '--verbose', help='be verbose', required=False, default=0, action='count')
-    self.ap.add_argument('-V', '--version', action='version', version='%(prog)s '+str(MAJOR_VERSION)+'.'+str(MINOR_VERSION))
-    self.args = ap.parse_args()
-    
-    self.graph = Graph()
+    ##
+    ## argument parsing
+    ##
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-i','--input', help='input graph file', required=True)
+    ap.add_argument('-m','--metis', help='metis binary path', required=True)
+    ap.add_argument('-w','--weight', help='input graph weight/depth file', required=False, default=None)
+    ap.add_argument('-p','--partinit', help='initial partitioning file', required=False, default=None)
+    ap.add_argument('-o','--output', help='output file prefix', required=True)
+    ap.add_argument('-y','--nlayers', help='number of halo layers', required=False, default=0, choices=[0, 1, 2, 3], type=int)
+    ap.add_argument('-n','--nparts', help='number of partitions', required=True, type=int)
+    ap.add_argument('-t','--niters', help='number of iterations', required=False, default=10, type=int)
+    ap.add_argument('-v', '--verbose', help='be verbose', required=False, default=0, action='count')
+    ap.add_argument('-V', '--version', action='version', version='%(prog)s '+str(MAJOR_VERSION)+'.'+str(MINOR_VERSION))
+    args = ap.parse_args()
+    self.inputconfig = {
+      'metis': args.metis,
+      'graphfile': args.input,
+      'weightfile': args.weight,
+      'partfile': args.partinit,
+      'outprefix': args.output,
+      'nparts': args.nparts,
+      'niters': args.niters,
+      'nlayers': args.nlayers,
+      'verbose': args.verbose
+    }
+    self.logfile = open('hampton.log', 'a')
+    ##
+    ## initialize graph
+    ##
+    self.graph = Graph()    
+    self.graph.read_graph(self.inputconfig['graphfile'])
+    if self.inputconfig['weightfile'] is not None:
+      self.graph.read_weights(wfile=self.inputconfig['weightfile'],sizes=MAX_DEPTH)
+    init_partfile = self.perform_init_partitioning()
+    self.graph.read_partitions(init_partfile)
+    ##
+    ## compute halos and neighbors
+    ##
+    self.graph.compute_halos(self.inputconfig['nlayers'])
+    self.graph.compute_part_neighbors()
+    ##
+    ## misc stuff
+    ##
+    self.num_cells = self.graph.num_nodes()
+    self.num_partitions = self.inputconfig['nparts']
+    if self.num_partitions != self.graph.num_partitions():
+      print 'error: number of partitions is not right'
+      sys.exit(2)
+    ##
+    ## display graph details
+    ##
+    self.graph.printall()
+    self.graph.print_detailed_statistics()
+  
+  def perform_init_partitioning(self):
+    if self.inputconfig['partfile'] is not None:
+      print 'info: using given initial partitioning'
+      return self.inputconfig['partfile']
+    print 'info: performing initial partitioning'
+    seed = random.randint(1, 400000)
+    cmd = self.inputconfig['metis'] + ' ' + self.inputconfig['graphfile'] + ' ' + str(self.inputconfig['nparts'])
+    opts = ''
+    opts = '-seed=' + str(seed)
+    cmd += ' ' + opts
+    print 'executing', cmd
+    try:
+      ret = subprocess.check_call(cmd, shell=True, stderr=subprocess.STDOUT, stdout=self.logfile)
+    except subprocess.CalledProcessError:
+      print 'error: metis failed! check log for details.'
+      sys.exit(2)
+    else:
+      if ret != 0:
+        print 'error: something bad happened while running metis! check the log for details'
+        sys.exit(2)
+    init_partfile = self.inputconfig['graphfile'] + '.part.' + str(self.inputconfig['nparts'])
+    return init_partfile
 
+  def compute_and_update_weights(self):
+    ## compute 'local' computation weights for each partition
+    local_weights = self.graph.compute_local_weights()
+    halo_weights = self.graph.compute_halo_weights()
+    total_weights = { p: local_weights[p] + halo_weights[p] for p in range(0, self.graph.num_partitions())}
+    self.graph.update_local_weights(halo_weights)
+    ## compute 'halo' computation weight for each partition
+    halo_volumes = self.graph.compute_halo_volumes()
+    ## compute 'halo' communication volume (total for each partition)
+    ## compute 'halo' communication volume (total send volume and per neighbor, total receive volume and per neighbor)
+    print 'local weights:', local_weights
+    print 'halo weights :', halo_weights
+    print 'total weights:', total_weights
+    print 'halo volumes :', halo_volumes
 
-def compute_node_weights(nparts, parts, depths, halos, pneighbors, weights):
-  ## compute num halo cells
-  nhalocells = {}
-  for p in range(0, nparts):
-    nhalocells[p] = 0
-  for p, hcells in halos.iteritems():
-    nhalocells[p] = len(hcells)
-  ## compute num cells
-  ncells = {}
-  for p in range(0, nparts):
-    ncells[p] = 0
-  for node, part in parts.iteritems():
-    ncells[part] += 1
-  ## compute num total cells
-  ntotcells = map(add, ncells.values(), nhalocells.values())
-  ## compute num neighbors
-  nneighbors = {}
-  for p in range(0, nparts):
-    nneighbors[p] = 0
-  for p, n in pneighbors.iteritems():
-    nneighbors[p] = len(n)
-  #print "*** nhalocells: ", nhalocells
-  #print "*** ncells: ", ncells
-  #print "*** total cells: ", ntotcells
-  ## print "*** total cells stats: ",
-  ## print_stats(ntotcells)
-  ## compute cost due to computations
-  local_comps = {}
-  halo_comps = {}
-  cell_comps = {}
-  hcell_comps = {}
-  compute_model_computation_cost(ncells, nhalocells, nparts, parts, depths, halos, local_comps, halo_comps, cell_comps, hcell_comps)
-  tot_comps = {}
-  for p in range(0, nparts):
-    tot_comps[p] = local_comps[p] + halo_comps[p]
-  ## compute cost due to communications
-  tot_comms = {}
-  compute_model_communication_cost(nhalocells, nneighbors, nparts, halos, depths, tot_comps, tot_comms)
-  ## calculate the weights to add to each partition cell due to halo cells
-  part_add_weights = {}
-  for p in range(0, nparts):
-    part_add_weights[p] = float(halo_comps[p] + tot_comms[p]) / ncells[p]
-  for node, part in parts.iteritems():
-    weights[node] = int((cell_comps[node] + part_add_weights[part]) * 100)
+  def write_partitioning(self):
+    filename = self.inputconfig['outprefix'] + '.info.part.' + str(self.inputconfig['nparts'])
+    self.graph.save_partitioning(filename)
 
-
-def compute_model_computation_cost(ncells, nhcells, nparts, parts, depths, halos, local_comps, halo_comps, cell_comps, hcell_comps):
-  a = A
-  f = F(nparts)
-  for p in range(0, nparts):
-    local_comps[p] = 0.
-    halo_comps[p] = 0.
-  for n, p in parts.iteritems():
-    cell_comps[n] = depths[n] / f
-    hcell_comps[n] = a * depths[n] / f
-    local_comps[p] += cell_comps[n]
-    if n in halos[p]: halo_comps[p] += hcell_comps[n]
-
-
-def compute_model_communication_cost(nhcells, nneighbors, nparts, halos, depths, tot_comps, tot_comms):
-  f = F(nparts)
-  max_comp = max(tot_comps.values())
-  ## all 40 layers are communicated
-  for p in range(0, nparts):
-    tot_comms[p] = B * ((40. * nhcells[p] / (nneighbors[p] * f)) + (max_comp - tot_comps[p]))
-
-
-def calculate_parts_total_weights(nparts, parts, weights, pweights):
-  for p in range(0, nparts):
-    pweights[p] = 0
-  for node in range(0, len(weights)):
-    part = parts[node]
-    pweights[part] += weights[node]
-
-
-def print_stats(arr):
-  pdarr = np.array(arr)
-  asum = pdarr.sum()
-  amin = pdarr.min()
-  amax = pdarr.max()
-  amean = pdarr.mean()
-  astd = pdarr.std()
-  print '\n++ Total weight: ' + str(asum)
-  print '++ Min: ' + str(amin) + ', Max: ' + str(amax) + ', Mean: ' + str(amean) + ', Std: ' + str(astd)
-  print '++ Imbalance: ' + str(1 - (float(amin) / amax))
-
-
-def write_weighted_hypergraph(filename, data, weights, nnodes, nnets, npins):
-  if nnodes != nnets: print 'warning: nnodes and nnets do not match: %d, %d\n' % (nnodes, nnets)
-  ff = open(filename, 'w')
-  header = '0 %d %d %d 1\n' % (nnodes, nnets, npins)
-  ff.write(header)
-  for net, pins in sorted(data.iteritems()):
-    record = ''
-    for p in pins: record += str(p) + ' '
-    record += '\n'
-    ff.write(record)
-  record = ''
-  for w in weights: record += str(w) + ' '
-  record += '\n'
-  ff.write(record)
-  ff.close()
-
-
-def write_parts(filename, parts):
-  ff = open(filename, 'w')
-  for node, part in sorted(parts.iteritems()):
-    record = str(part) + '\n'
-    ff.write(record)
-  ff.close()
-
+  def write_weighted_graph(self):
+    filename = 'tmp.' + self.inputconfig['outprefix'] + '.info'
+    self.graph.save_graph(filename)
 
 
 ## the main part
 
-
-##
-## argument parsing
-##
-
-ap = argparse.ArgumentParser()
-ap.add_argument('-i','--input', help='input graph file', required=True, type=file)
-ap.add_argument('-m','--metis', help='metis binary path', required=True)
-ap.add_argument('-w','--weight', help='input graph weight/depth file', required=False, type=file, default=None)
-ap.add_argument('-p','--partinit', help='initial partitioning file', required=False, type=file, default=None)
-ap.add_argument('-o','--output', help='output file prefix', required=True)
-ap.add_argument('-y','--nlayers', help='number of halo layers', required=False, default=0, choices=[0, 1, 2, 3], type=int)
-ap.add_argument('-n','--nparts', help='number of partitions', required=True, type=int)
-ap.add_argument('-t','--niters', help='number of iterations', required=False, default=10, type=int)
-ap.add_argument('-v', '--verbose', help='be verbose', required=False, default=0, action='count')
-ap.add_argument('-V', '--version', action='version', version='%(prog)s '+str(MAJOR_VERSION)+'.'+str(MINOR_VERSION))
-
-args = ap.parse_args()
-
-graphfile = args.input
-weightfile = args.weight
-partfile = args.partinit
-outfile = args.output
-nparts = args.nparts
-niters = args.niters
-nlayers = args.nlayers
-verbose = args.verbose
-
-
-mypart = Partitioner()
-
+hampton = Partitioner()
+hampton.compute_and_update_weights()
+hampton.write_weighted_graph()
+hampton.write_partitioning()
 
 sys.exit(2)
 
