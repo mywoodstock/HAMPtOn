@@ -39,7 +39,11 @@ class Graph:
 
   def node_partition(self, node):
     if node not in self.nodelist: return -1
-    return nodelist[node]['partition']
+    return self.nodelist[node]['partition']
+  
+  def node_weight(self, node):
+    if node not in self.nodelist: return 0
+    return self.nodelist[node]['weight']
   
   def nodes_in_partition(self, part):
     if part not in self.partitions: return []
@@ -47,10 +51,18 @@ class Graph:
   
   def num_nodes_in_partition(self, part):
     if part not in self.partitions: return 0
-    return len(self.partitions[part])
+    return len(self.partitions[part])  
+
+  def num_partition_neighbors(self, part):
+    if part not in self.partitions: return 0
+    return len(self.partitions[part]['neighbors'])
 
   def num_partitions(self):
     return len(self.partitions)
+  
+  def set_node_weights(self, weights):
+    for nodeid in range(1,self.num_nodes()+1):
+      self.nodelist[nodeid]['weight'] = weights[nodeid]
     
   def read_graph(self, infile):
     print 'reading graph...'
@@ -97,7 +109,7 @@ class Graph:
   
   def read_weights(self, wfile=None, weights=None, sfile=None, sizes=None):
     print 'initializing weights...'
-    ## node weights: local weight, outside weight (computation)
+    ## node weights: local weight, total (local+halo) weight (computation)
     ## node size (communication volume)
     if wfile is not None:
       ff = open(wfile)
@@ -191,53 +203,99 @@ class Graph:
     return halo_volumes
 
   def print_statistics(self):
-		num_parts = self.num_partitions()
-		temp_part_num_cells = []
-		temp_part_num_halo_cells = []
-		temp_part_num_neighbors = []
-		for part, partdata in self.partitions.iteritems():
-			temp_part_num_cells.append(len(partdata['nodes']))
-			temp_part_num_halo_cells.append(len(partdata['halo_nodes']))
-			temp_part_num_neighbors.append(len(partdata['neighbors']))
-		part_num_cells = np.array(temp_part_num_cells)
-		part_num_halo_cells = np.array(temp_part_num_halo_cells)
-		part_num_neighbors = np.array(temp_part_num_neighbors)
-		part_total_num_cells = part_num_cells + part_num_halo_cells
-		print ("**            num nodes:"
-				+ " min = " + str(part_num_cells.min())
-				+ " max = " + str(part_num_cells.max())
-				+ " mean = " + str(part_num_cells.mean())
-				+ " std-dev = "	+ str(part_num_cells.std())
-				+ " imbalance = " + str(1.0 - float(part_num_cells.min())/part_num_cells.max()))
-		print ("**       num halo nodes:"
-				+ " min = " + str(part_num_halo_cells.min())
-				+ " max = " + str(part_num_halo_cells.max())
-				+ " mean = " + str(part_num_halo_cells.mean())
-				+ " std-dev = " + str(part_num_halo_cells.std())
-				+ " imbalance = " + str(1.0 - float(part_num_halo_cells.min())/part_num_halo_cells.max()))
-		print ("**      total num nodes:"
-				+ " min = " + str(part_total_num_cells.min())
-				+ " max = " + str(part_total_num_cells.max())
-				+ " mean = " + str(part_total_num_cells.mean())
-				+ " std-dev = " + str(part_total_num_cells.std())
-				+ " imbalance = " + str(1.0 - float(part_total_num_cells.min())/part_total_num_cells.max()))
-		print ("**            neighbors:"
+    num_parts = self.num_partitions()
+    temp_part_num_cells = []
+    temp_part_num_halo_cells = []
+    temp_part_num_neighbors = []
+    for part, partdata in self.partitions.iteritems():
+      temp_part_num_cells.append(len(partdata['nodes']))
+      temp_part_num_halo_cells.append(len(partdata['halo_nodes']))
+      temp_part_num_neighbors.append(len(partdata['neighbors']))
+    part_num_nodes = np.array(temp_part_num_cells)
+    part_num_halos = np.array(temp_part_num_halo_cells)
+    part_num_total = part_num_nodes + part_num_halos
+    part_num_neighbors = np.array(temp_part_num_neighbors)
+    
+    part_weight_nodes = {}
+    part_weight_halos = {}
+    part_weight_total = {}
+    part_volume_halos = {}
+    for part, pdata in self.partitions.iteritems():
+      part_weight_nodes[part] = 0
+      for nid in pdata['nodes']:
+        part_weight_nodes[part] += self.nodelist[nid]['weight'][0]
+      part_weight_halos[part] = 0
+      part_volume_halos[part] = 0
+      for nid in pdata['halo_nodes']:
+        part_weight_halos[part] += self.nodelist[nid]['weight'][0]
+        part_volume_halos[part] += self.nodelist[nid]['size'] / len(pdata['neighbors'])
+      part_weight_total[part] = part_weight_nodes[part] + part_weight_halos[part]
+    part_weight_nodes = np.array(part_weight_nodes.values())
+    part_weight_halos = np.array(part_weight_halos.values())
+    part_weight_total = np.array(part_weight_total.values())
+    part_volume_halos = np.array(part_volume_halos.values())
+    
+    print ("**        num nodes:"
+				+ " min = " + str(part_num_nodes.min())
+				+ " max = " + str(part_num_nodes.max())
+				+ " mean = " + str(part_num_nodes.mean())
+				+ " std-dev = "	+ str(part_num_nodes.std())
+				+ " imbalance = " + str(1.0 - float(part_num_nodes.min())/part_num_nodes.max()))
+    print ("**   num halo nodes:"
+				+ " min = " + str(part_num_halos.min())
+				+ " max = " + str(part_num_halos.max())
+				+ " mean = " + str(part_num_halos.mean())
+				+ " std-dev = " + str(part_num_halos.std())
+				+ " imbalance = " + str(1.0 - float(part_num_halos.min())/part_num_halos.max()))
+    print ("**  total num nodes:"
+				+ " min = " + str(part_num_total.min())
+				+ " max = " + str(part_num_total.max())
+				+ " mean = " + str(part_num_total.mean())
+				+ " std-dev = " + str(part_num_total.std())
+				+ " imbalance = " + str(1.0 - float(part_num_total.min())/part_num_total.max()))
+    print ("**        neighbors:"
 				+ " min = " + str(part_num_neighbors.min())
 				+ " max = " + str(part_num_neighbors.max())
 				+ " mean = " + str(part_num_neighbors.mean())
 				+ " std-dev = " + str(part_num_neighbors.std())
 				+ " imbalance = " + str(1.0 - float(part_num_neighbors.min())/part_num_neighbors.max()))
-		nparts = len(self.partitions)
+    
+    print ("**     weight nodes:"
+				+ " min = " + str(part_weight_nodes.min())
+				+ " max = " + str(part_weight_nodes.max())
+				+ " mean = " + str(part_weight_nodes.mean())
+				+ " std-dev = "	+ str(part_weight_nodes.std())
+				+ " imbalance = " + str(1.0 - float(part_weight_nodes.min())/part_weight_nodes.max()))
+    print ("**     weight halos:"
+				+ " min = " + str(part_weight_halos.min())
+				+ " max = " + str(part_weight_halos.max())
+				+ " mean = " + str(part_weight_halos.mean())
+				+ " std-dev = "	+ str(part_weight_halos.std())
+				+ " imbalance = " + str(1.0 - float(part_weight_halos.min())/part_weight_halos.max()))
+    print ("**     weight total:"
+				+ " min = " + str(part_weight_total.min())
+				+ " max = " + str(part_weight_total.max())
+				+ " mean = " + str(part_weight_total.mean())
+				+ " std-dev = "	+ str(part_weight_total.std())
+				+ " imbalance = " + str(1.0 - float(part_weight_total.min())/part_weight_total.max()))
+
+    print ("**     volume halos:"
+				+ " min = " + str(part_volume_halos.min())
+				+ " max = " + str(part_volume_halos.max())
+				+ " mean = " + str(part_volume_halos.mean())
+				+ " std-dev = "	+ str(part_volume_halos.std())
+				+ " imbalance = " + str(1.0 - float(part_volume_halos.min())/part_volume_halos.max()))
+    
 
   def print_detailed_statistics(self):
-		print "** partitions data:"
+		print "** partitioning sizes:"
 		for part, pdata in self.partitions.iteritems():
-			ncells = len(pdata['nodes'])
-			nhcells = len(pdata['halo_nodes'])
+			nnodes = len(pdata['nodes'])
+			nhnodes = len(pdata['halo_nodes'])
 			nneighbors = len(pdata['neighbors'])
-			print ("    partition " + str(part) + " :: nodes = " + str(ncells)
-					+ " :: halo nodes = " + str(nhcells)
-					+ " :: total nodess = " + str(nhcells + ncells)
+			print ("    partition " + str(part) + " :: nodes = " + str(nnodes)
+					+ " :: halo nodes = " + str(nhnodes)
+					+ " :: total nodess = " + str(nhnodes + nnodes)
 					+ " :: neighbors = " + str(nneighbors))
 		self.print_statistics()
 
@@ -253,7 +311,7 @@ class Graph:
     for nodeid in range(1,self.num_nodes()+1):
       rec = ''
       rec += str(int(self.nodelist[nodeid]['size'])) + '\t'
-      rec += str(int(self.nodelist[nodeid]['weight'][1])) + '\t'
+      rec += str(int(self.nodelist[nodeid]['weight'][1])) + '\t'                    ## save only the second weight
       rec += '\t'.join(map(flatten_neighbors, self.nodelist[nodeid]['neighbors']))
       rec += '\n'
       ff.write(rec)
