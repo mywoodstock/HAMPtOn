@@ -25,8 +25,7 @@ MINOR_VERSION=9
 
 
 TEMPERATURE = 1e-2      ## for monte-carlo process convergence
-A = 1.                  ## halo cells vs. local cells compute ratio
-COMP_COMM_RATIO = 1.    ## communication vs. computation ratio: nhalocells / (ncellsvertical)
+COMP_COMM_RATIO = 0.5    ## communication vs. computation ratio
 
 
 class Partitioner:
@@ -94,7 +93,7 @@ class Partitioner:
       print 'info: using given initial partitioning'
       return self.inputconfig['partfile']
     print 'info: performing initial partitioning'
-    return construct_metis_partitioning(self.inputconfig['graphfile'], self.inputconfig['nparts'])
+    return self.construct_metis_partitioning(self.inputconfig['graphfile'], self.inputconfig['nparts'])
 
   def construct_metis_partitioning(self, graphfile, nparts):
     seed = random.randint(1, 400000)

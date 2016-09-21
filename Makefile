@@ -22,6 +22,7 @@ TEMP_DIR ?= $(TEMP_DIR_DEFAULT)
 NETCDF = ${NETCDF_DIR}
 COMBBLAS = ${COMBBLAS_DIR}
 PATOHBIN = ${PATOH_BIN}
+METISBIN = ${METIS_BIN}
 BASEDIR = ${BASE_DIR}
 TEMPDIR = ${TEMP_DIR}
 
@@ -55,10 +56,16 @@ BIN1 = depths
 BIN2 = apowers
 BIN3 = mpasorder
 MAIN = hampton
+MAIN_METIS = hampton_metis
 
 REQUIRED = check-NETCDF_DIR check-COMBBLAS_DIR check-PATOH_BIN
+REQUIRED_METIS = check-NETCDF_DIR check-METIS_BIN
 OPTIONAL = test-BASE_DIR test-TEMP_DIR
 TESTALL = $(REQUIRED) $(OPTIONAL)
+TESTALL_METIS = $(REQUIRED_METIS) $(OPTIONAL)
+
+default: CXX_FLAGS+=$(OPT_FLAGS)
+default: $(TESTALL_METIS) $(BIN1) $(BIN3) $(MAIN_METIS)
 
 all: CXX_FLAGS+=$(OPT_FLAGS)
 all: $(TESTALL) $(BIN1) $(BIN2) $(BIN3) $(MAIN)
@@ -67,8 +74,7 @@ debug: CXX_FLAGS+=$(DEBUG_FLAGS)
 debug: $(TESTALL) $(BIN1) $(BIN2) $(BIN3) $(MAIN)
 
 clean:
-	rm -f $(OBJ1) $(OBJ2) $(OBJ3) $(BIN_DIR)/$(BIN1) $(BIN_DIR)/$(BIN2) $(BIN_DIR)/$(BIN3) $(BIN_DIR)/$(MAIN)
-	rmdir $(BIN_DIR)
+	rm -rf $(OBJ1) $(OBJ2) $(OBJ3) $(BIN_DIR)
 
 $(BIN1): $(OBJ1)
 	mkdir -p $(BIN_DIR)
@@ -85,6 +91,13 @@ $(BIN3): $(OBJ3)
 $(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS_HPP)
 	$(MPICXX) -c $< -o $@ $(CXX_FLAGS) $(CXX_INCL)
 
+
+$(MAIN_METIS): $(SRC_DIR)/workflow.metis.base
+	mkdir -p $(BIN_DIR)
+	cat $< | sed s,ENV_METIS_BIN,$(METISBIN),g \
+		| sed s,ENV_BASE_DIR,$(BASEDIR),g \
+		| sed s,ENV_TEMP_DIR,$(TEMPDIR),g > $(BIN_DIR)/$(MAIN_METIS)
+	chmod +x $(BIN_DIR)/$(MAIN_METIS)
 
 $(MAIN): $(SRC_DIR)/workflow.base
 	mkdir -p $(BIN_DIR)
