@@ -25,7 +25,7 @@ MINOR_VERSION=9
 
 
 TEMPERATURE = 1e-2      ## for monte-carlo process convergence
-COMP_COMM_RATIO = 0.5    ## communication vs. computation ratio
+COMP_COMM_RATIO = 1.0    ## communication vs. computation ratio
 
 
 class Partitioner:
@@ -122,7 +122,7 @@ class Partitioner:
     local_weights = graph.compute_local_weights()
     halo_weights = graph.compute_halo_weights()
     total_weights = { p: local_weights[p] + halo_weights[p] for p in range(0, graph.num_partitions())}
-    graph.update_local_weights(halo_weights)
+    graph.update_local_weights(halo_weights, halo_mfactor=20, local_mfactor=10)
     ## compute 'halo' computation weight for each partition
     halo_volumes = graph.compute_halo_volumes()
     avg_halo_volumes = { p: halo_volumes[p] / graph.num_partition_neighbors(p) for p in range(0, graph.num_partitions()) }
