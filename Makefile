@@ -50,11 +50,13 @@ OBJ3 = $(SRC_DIR)/netcdf_utils.o					\
 			 $(SRC_DIR)/mpas_ordering_morton.o	\
 			 $(SRC_DIR)/mpas_ordering_hilbert.o	\
 			 $(SRC_DIR)/mpas_ordering_peano.o
+OBJ4 = $(SRC_DIR)/netcdf_utils.o $(SRC_DIR)/extract_cell_coords.o
 DEPS_HPP = $(SRC_DIR)/netcdf_utils.h
 
 BIN1 = depths
 BIN2 = apowers
 BIN3 = mpasorder
+BIN4 = coords
 MAIN = hampton
 MAIN_METIS = hampton_metis
 
@@ -65,16 +67,16 @@ TESTALL = $(REQUIRED) $(OPTIONAL)
 TESTALL_METIS = $(REQUIRED_METIS) $(OPTIONAL)
 
 default: CXX_FLAGS+=$(OPT_FLAGS)
-default: $(TESTALL_METIS) $(BIN1) $(BIN3) $(MAIN_METIS)
+default: $(TESTALL_METIS) $(BIN1) $(BIN3) $(BIN4) $(MAIN_METIS)
 
 all: CXX_FLAGS+=$(OPT_FLAGS)
-all: $(TESTALL) $(BIN1) $(BIN2) $(BIN3) $(MAIN)
+all: $(TESTALL) $(BIN1) $(BIN2) $(BIN3) $(BIN4) $(MAIN)
 
 debug: CXX_FLAGS+=$(DEBUG_FLAGS)
-debug: $(TESTALL) $(BIN1) $(BIN2) $(BIN3) $(MAIN)
+debug: $(TESTALL) $(BIN1) $(BIN2) $(BIN3) $(BIN4) $(MAIN)
 
 clean:
-	rm -rf $(OBJ1) $(OBJ2) $(OBJ3) $(BIN_DIR)
+	rm -rf $(OBJ1) $(OBJ2) $(OBJ3) $(OBJ4) $(BIN_DIR)
 
 $(BIN1): $(OBJ1)
 	mkdir -p $(BIN_DIR)
@@ -85,6 +87,10 @@ $(BIN2): $(OBJ2)
 	$(MPICXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS2_FLAGS)
 
 $(BIN3): $(OBJ3)
+	mkdir -p $(BIN_DIR)
+	$(MPICXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS1_FLAGS)
+
+$(BIN4): $(OBJ4)
 	mkdir -p $(BIN_DIR)
 	$(MPICXX) -o $(BIN_DIR)/$@ $^ $(CXX_FLAGS) $(LIBS1_FLAGS)
 
