@@ -45,6 +45,10 @@ class Graph:
     if node not in self.nodelist: return 0
     return self.nodelist[node]['weight']
   
+  def node_size(self, node):
+    if node not in self.nodelist: return 0
+    return self.nodelist[node]['size']
+  
   def nodes_in_partition(self, part):
     if part not in self.partitions: return []
     return self.partitions[part]['nodes']
@@ -63,6 +67,10 @@ class Graph:
   def set_node_weights(self, weights):
     for nodeid in range(1,self.num_nodes()+1):
       self.nodelist[nodeid]['weight'] = weights[nodeid]
+    
+  def set_node_sizes(self, sizes):
+    for nodeid in range(1,self.num_nodes()+1):
+      self.nodelist[nodeid]['size'] = sizes[nodeid]
     
   def read_graph(self, infile):
     print 'reading graph...'
@@ -89,7 +97,7 @@ class Graph:
       if nodeid not in self.nodelist: self.nodelist[nodeid] = {}
       index = 0
       if has_vertex_sizes:
-        self.nodelist[nodeid]['size'] = words[index]
+        self.nodelist[nodeid]['size'] = [ 0, words[index] ]
         index += 1
       if has_vertex_weights:
         self.nodelist[nodeid]['weight'] = words[index:num_vertex_weights+index]
@@ -132,7 +140,7 @@ class Graph:
     else:
       if sizes is None: sizes = 1.
       for nodeid in range(1, self.num_nodes()+1):
-        self.nodelist[nodeid]['size'] = sizes
+        self.nodelist[nodeid]['size'] = [ sizes, 0. ]
 
   def read_partitions(self, infile):
     print 'reading partitions...'
@@ -182,29 +190,36 @@ class Graph:
     local_weights = {}
     for p in range(0, self.num_partitions()):
       pnodes = self.partitions[p]['nodes']
-      local_weights[p] = np.array([self.nodelist[nodeid]['weight'][0]*mfactor for nodeid in pnodes]).sum()
+      local_weights[p] = np.array([self.nodelist[nodeid]['weight'][0] * mfactor for nodeid in pnodes]).sum()
     return local_weights
 
   def compute_halo_weights(self, mfactor=1):
     halo_weights = {}
     for p in range(0, self.num_partitions()):
       pnodes = self.partitions[p]['halo_nodes']
-      halo_weights[p] = np.array([self.nodelist[nodeid]['weight'][0]*mfactor for nodeid in pnodes]).sum()
+      halo_weights[p] = np.array([self.nodelist[nodeid]['weight'][0] * mfactor for nodeid in pnodes]).sum()
     return halo_weights
 
   def update_local_weights(self, halo_weights, halo_mfactor=1, local_mfactor=1):
     for p in range(0, self.num_partitions()):
       pnodes = self.partitions[p]['nodes']
-      hweight = float(halo_weights[p] * halo_mfactor) / len(pnodes)
+      hweight = float(halo_weights[p]) / len(pnodes)
       for nodeid in pnodes:
-        self.nodelist[nodeid]['weight'][1] = hweight + self.nodelist[nodeid]['weight'][0] * local_mfactor
+        self.nodelist[nodeid]['weight'][1] = hweight * halo_mfactor + self.nodelist[nodeid]['weight'][0] * local_mfactor
 
-  def compute_halo_volumes(self):
+  def compute_halo_volumes(self, mfactor=1):
     halo_volumes = {}
     for p in range(0, self.num_partitions()):
       pnodes = self.partitions[p]['halo_nodes']
-      halo_volumes[p] = np.array([self.nodelist[nodeid]['size'] for nodeid in pnodes]).sum()
+      halo_volumes[p] = np.array([self.nodelist[nodeid]['size'][0] * mfactor for nodeid in pnodes]).sum()
     return halo_volumes
+
+  def update_local_volumes(self, halo_volumes, halo_mfactor=1, local_mfactor=1):
+    for p in range(0, self.num_partitions()):
+      pnodes = self.partitions[p]['nodes']
+      hvolume = float(halo_volumes[p]) / len(pnodes)
+      for nodeid in pnodes:
+        self.nodelist[nodeid]['size'][1] = hvolume * halo_mfactor + self.nodelist[nodeid]['size'][0] * local_mfactor
 
   def print_statistics(self):
     num_parts = self.num_partitions()
@@ -232,7 +247,7 @@ class Graph:
       part_volume_halos[part] = 0
       for nid in pdata['halo_nodes']:
         part_weight_halos[part] += self.nodelist[nid]['weight'][0]
-        part_volume_halos[part] += self.nodelist[nid]['size']
+        part_volume_halos[part] += self.nodelist[nid]['size'][0]
       # part_weight_total[part] = part_weight_nodes[part] + part_weight_halos[part]
       part_volume_halos[part] /= len(pdata['neighbors'])
     part_weight_nodes = np.array(part_weight_nodes.values())
@@ -315,8 +330,8 @@ class Graph:
     ff.write(header)
     for nodeid in range(1,self.num_nodes()+1):
       rec = ''
-      rec += str(int(self.nodelist[nodeid]['size'])) + '\t'
-      rec += str(int(self.nodelist[nodeid]['weight'][1])) + '\t'                    ## save only the second weight
+      rec += str(int(self.nodelist[nodeid]['size'][1])) + '\t'      ## save just the second volume
+      rec += str(int(self.nodelist[nodeid]['weight'][1])) + '\t'    ## save just the second weight
       rec += '\t'.join(map(flatten_neighbors, self.nodelist[nodeid]['neighbors']))
       rec += '\n'
       ff.write(rec)

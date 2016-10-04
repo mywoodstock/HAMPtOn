@@ -41,7 +41,7 @@ class Partitioner:
     ap.add_argument('-p','--partinit', help='initial partitioning file', required=False, default=None)
     ap.add_argument('-o','--output', help='output file prefix', required=True)
     ap.add_argument('-y','--nlayers', help='number of halo layers', required=False, default=0, choices=[0, 1, 2, 3], type=int)
-    ap.add_argument('-d','--maxdepth', help='maximum depth of cells', required=False, default=40, type=int)
+    ap.add_argument('-d','--maxdepth', help='maximum depth of cells', required=False, default=1, type=int)
     ap.add_argument('-n','--nparts', help='number of partitions', required=True, type=int)
     ap.add_argument('-t','--niters', help='number of iterations', required=False, default=10, type=int)
     ap.add_argument('-v', '--verbose', help='be verbose', required=False, default=0, action='count')
@@ -68,6 +68,7 @@ class Partitioner:
     if self.inputconfig['weightfile'] is not None:
       self.graph.read_weights(wfile=self.inputconfig['weightfile'],sizes=self.inputconfig['maxdepth'])
     self.store_node_depths()
+    self.store_node_volumes()
     init_partfile = self.construct_init_partitioning()
     self.graph.read_partitions(init_partfile)
     ##
@@ -116,6 +117,9 @@ class Partitioner:
   def store_node_depths(self):
     self.depths = { nodeid: self.graph.node_weight(nodeid) for nodeid in range(1,self.graph.num_nodes()+1) }
 
+  def store_node_volumes(self):
+    self.volumes = { nodeid: self.graph.node_size(nodeid) for nodeid in range(1,self.graph.num_nodes()+1) }
+
   def compute_and_update_weights(self, graph=None):
     if graph is None: graph = self.graph
     ## compute 'local' computation weights for each partition
@@ -126,6 +130,7 @@ class Partitioner:
     ## compute 'halo' computation weight for each partition
     halo_volumes = graph.compute_halo_volumes()
     avg_halo_volumes = { p: halo_volumes[p] / graph.num_partition_neighbors(p) for p in range(0, graph.num_partitions()) }
+    graph.update_local_volumes(halo_volumes)
     ## compute 'halo' communication volume (total for each partition)
     ## compute 'halo' communication volume (total send volume and per neighbor, total receive volume and per neighbor)
     print 'local weights:', local_weights
@@ -141,11 +146,12 @@ class Partitioner:
     curr_graph = self.graph
     for i in range(0, self.inputconfig['niters']):
       print '## Running iteration', i, '...'
+      test_partfile = self.construct_metis_partitioning(temp_graphfile, self.inputconfig['nparts'])
       test_graph = Graph()    
       test_graph.read_graph(temp_graphfile)
-      test_partfile = self.construct_metis_partitioning(temp_graphfile, self.inputconfig['nparts'])
       test_graph.read_partitions(test_partfile)
       test_graph.set_node_weights(self.depths)
+      test_graph.set_node_sizes(self.volumes)
       test_graph.compute_halos(self.inputconfig['nlayers'])
       test_graph.compute_part_neighbors()
       compute_cost, halo_cost = self.compute_and_update_weights(test_graph)
@@ -154,7 +160,8 @@ class Partitioner:
       print 'halo cost:', halo_cost
       print 'total cost:', total_cost
       newerr = 1. - (float(min(total_cost.values())) / max(total_cost.values()))
-      print '** Error value:', newerr
+      print '** Current error value:', newerr
+      print '** Previous error value:', err
       differr = err - newerr
       if differr > 0: accept = True
       else:
@@ -200,51 +207,3 @@ if __name__ == '__main__':
   hampton.print_statistics()
   
   hampton.construct_halo_aware_partitioning()  
-
-sys.exit(2)
-
-for i in range(0, niter):
-  ## perform partitioning
-
-  newerr = 1. - (float(min(totpweights.values())) / max(totpweights.values()))
-  differr = err - newerr
-  if differr > 0: accept = True
-  else:
-    prob = np.exp(differr / TEMPERATURE)
-    ## print '*** Acceptance probability: ' + str(prob)
-    if random.random() < prob: accept = True
-    else: accept = False;
-  
-  ## print "*** ERROR VALUE: " + str(newerr) + " [ " + str(err) + ' ]'
-  if not accept:
-    ## print '*** rejecting partitioning'
-    ## print "*** rejected part weights: ", totpweights
-    ## print "*** rejected part weight stats: ",
-    ## print_stats(totpweights.values())
-    continue
-
-  err = newerr
-  ## print '*** accepting partitioning'  
-  final_parts = parts
-  final_weights = weights
-
-  ## print "*** total part weights: ", totpweights
-  ## print "*** part weight stats: ",
-  ## print_stats(totpweights.values())
-
-  if i == niter: break
-
-  ## write new weighted hypergraph
-  write_weighted_hypergraph(tmpoutfile, data, final_weights, nnodes, nnets, npins)
-
-## write out the final partitioning. writing the hypergraph file is not needed ...
-totpweights = {}
-calculate_parts_total_weights(nparts, final_parts, final_weights, totpweights)
-partoutfile = outfile + '.part.' + str(nparts)
-write_parts(partoutfile, final_parts)
-
-## print "*** final total part weights: ", totpweights
-print "*** final part weight stats: ",
-print_stats(totpweights.values())
-
-logfile.close()
