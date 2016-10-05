@@ -467,8 +467,9 @@ def parse_arguments(argv):
     opts, args, = getopt.getopt(argv, "g:p:w:c:o:r:")
     if len(opts) < 4: raise getopt.GetoptError("Not enough arguments provided")
   except getopt.GetoptError:
-    print "model_new.py -g <graph_file> -p <partition_file> -w <weight_file> -c <coord_file> -o <output_prefix> -r <read or compute>"
+    print "model_new.py -g <graph_file> -p <partition_file> -w <weight_file> [-c <coord_file>] -o <output_prefix> -r <read or compute>"
     sys.exit(2)
+  coordfile = None
   for opt, arg in opts:
     if opt in ("-g"): graphfile = arg
     if opt in ("-p"): partfile = arg
@@ -485,11 +486,12 @@ if __name__ == "__main__":
   graph = Graph()
   graph.read_graph(gfile)
   graph.read_weights(wfile)
-  graph.read_coords(cfile)
+  if cfile is not None: graph.read_coords(cfile)
   nparts = graph.read_partitions(pfile)
   if read == '1': graph.read_partition_info(oprefix)
   else:
     graph.process()
     graph.save_partition_info(oprefix)
   graph.generate_partition_network_graph(oprefix)
-  graph.generate_partition_graph(range(0, nparts), oprefix)      ## draw graph of partition 0
+  ## draw graph of all partitions is coords are given
+  if cfile is not None: graph.generate_partition_graph(range(0, nparts), oprefix)
