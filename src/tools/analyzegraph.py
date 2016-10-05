@@ -207,6 +207,7 @@ class Graph:
     return len(self.graph['partitions'])
 
   def get_halo_candidates(self, candidates, cell, layers):
+    if layers < 1: return
     for neighbor in self.cells_on_cell(cell):
       candidates.add(neighbor)
       if layers > 0: self.get_halo_candidates(candidates, neighbor, layers - 1)
