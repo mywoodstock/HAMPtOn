@@ -187,11 +187,20 @@ class Graph:
 				self.partitions[part]['neighbors'].add(self.nodelist[hnode]['partition'])
 
   def compute_local_weights(self, mfactor=1):
+    ## compute the weights as sum of weights of all nodes in a partition
     local_weights = {}
     for p in range(0, self.num_partitions()):
       pnodes = self.partitions[p]['nodes']
       local_weights[p] = np.array([self.nodelist[nodeid]['weight'][0] * mfactor for nodeid in pnodes]).sum()
     return local_weights
+
+  def compute_local_sizes(self, mfactor=1):
+    ## compute the sizes as total number of nodes in a partition (without weights)
+    local_sizes = {}
+    for p in range(0, self.num_partitions()):
+      pnodes = self.partitions[p]['nodes']
+      local_sizes[p] = len(pnodes)
+    return local_sizes
 
   def compute_halo_weights(self, mfactor=1):
     halo_weights = {}
@@ -199,6 +208,13 @@ class Graph:
       pnodes = self.partitions[p]['halo_nodes']
       halo_weights[p] = np.array([self.nodelist[nodeid]['weight'][0] * mfactor for nodeid in pnodes]).sum()
     return halo_weights
+
+  def compute_halo_sizes(self, mfactor=1):
+    halo_sizes = {}
+    for p in range(0, self.num_partitions()):
+      pnodes = self.partitions[p]['halo_nodes']
+      halo_sizes[p] = len(pnodes)
+    return halo_sizes
 
   def update_local_weights(self, halo_weights, halo_mfactor=1, local_mfactor=1):
     for p in range(0, self.num_partitions()):

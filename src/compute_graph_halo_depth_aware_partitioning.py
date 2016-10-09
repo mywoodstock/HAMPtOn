@@ -24,8 +24,9 @@ MAJOR_VERSION=0
 MINOR_VERSION=9
 
 
-TEMPERATURE = 1e-2      ## for monte-carlo process convergence
-COMP_COMM_RATIO = 1.0    ## communication vs. computation ratio
+TEMPERATURE = 1e-2        ## for monte-carlo process convergence
+COMP_COMM_RATIO = 1.0     ## communication vs. computation ratio
+COMP_SIZE_RATIO = 10.0    ## compute weight + COMP_SIZE_RATIO * compute size
 
 
 class Partitioner:
@@ -123,27 +124,31 @@ class Partitioner:
   def compute_and_update_weights(self, graph=None):
     if graph is None: graph = self.graph
     ## compute 'local' computation weights for each partition
+    ## compute 'halo' computation weight for each partition
     local_weights = graph.compute_local_weights()
     halo_weights = graph.compute_halo_weights()
     total_weights = { p: local_weights[p] + halo_weights[p] for p in range(0, graph.num_partitions())}
-    graph.update_local_weights(halo_weights, halo_mfactor=20, local_mfactor=10)
-    ## compute 'halo' computation weight for each partition
+    local_sizes = graph.compute_local_sizes()
+    halo_sizes = graph.compute_halo_sizes()
+    total_sizes = { p: local_sizes[p] + halo_sizes[p] for p in range(0, graph.num_partitions())}
+    graph.update_local_weights(halo_weights, halo_mfactor=5, local_mfactor=100)
+    ## compute 'halo' communication volume (total for each partition)
+    ## compute 'halo' communication volume (total send volume and per neighbor, total receive volume and per neighbor)
     halo_volumes = graph.compute_halo_volumes()
     avg_halo_volumes = { p: halo_volumes[p] / graph.num_partition_neighbors(p) for p in range(0, graph.num_partitions()) }
     graph.update_local_volumes(halo_volumes)
-    ## compute 'halo' communication volume (total for each partition)
-    ## compute 'halo' communication volume (total send volume and per neighbor, total receive volume and per neighbor)
     print 'local weights:', local_weights
     print 'halo weights :', halo_weights
     print 'total weights:', total_weights
     print 'halo volumes :', halo_volumes
-    return total_weights, avg_halo_volumes
+    return total_weights, total_sizes, halo_volumes, avg_halo_volumes
 
   def construct_halo_aware_partitioning(self):
     err = 1e20    ## something big
     random.seed()
     temp_graphfile = 'tmp.' + self.inputconfig['outprefix'] + '.info'
     curr_graph = self.graph
+    nparts = self.inputconfig['nparts']
     for i in range(0, self.inputconfig['niters']):
       print '## Running iteration', i, '...'
       test_partfile = self.construct_metis_partitioning(temp_graphfile, self.inputconfig['nparts'])
@@ -154,8 +159,9 @@ class Partitioner:
       test_graph.set_node_sizes(self.volumes)
       test_graph.compute_halos(self.inputconfig['nlayers'])
       test_graph.compute_part_neighbors()
-      compute_cost, halo_cost = self.compute_and_update_weights(test_graph)
-      total_cost = { p: compute_cost[p] + COMP_COMM_RATIO * halo_cost[p] for p in range(0,self.inputconfig['nparts'])}
+      compute_weight_cost, compute_size_cost, halo_cost, avg_halo_cost = self.compute_and_update_weights(test_graph)
+      compute_cost = { p: compute_weight_cost[p] + COMP_SIZE_RATIO * compute_size_cost[p] for p in range(0, nparts) }
+      total_cost = { p: compute_cost[p] + COMP_COMM_RATIO * halo_cost[p] for p in range(0, nparts) }
       print 'compute cost:', compute_cost
       print 'halo cost:', halo_cost
       print 'total cost:', total_cost
