@@ -28,6 +28,11 @@ TEMPERATURE = 1e-2        ## for monte-carlo process convergence
 COMP_COMM_RATIO = 0.0     ## communication vs. computation ratio
 COMP_SIZE_RATIO = 10.0    ## compute weight + COMP_SIZE_RATIO * compute size
 
+## b_ntotcells      = 7.16298077
+## b_nverttotcells  = 0.11333213
+COEFF_WEIGHT = 0.11333213
+COEFF_SIZE = 7.16298077
+
 
 class Partitioner:
   
@@ -131,18 +136,19 @@ class Partitioner:
     local_sizes = graph.compute_local_sizes()
     halo_sizes = graph.compute_halo_sizes()
     total_sizes = { p: local_sizes[p] + halo_sizes[p] for p in range(0, graph.num_partitions())}
-    halo_total_weights = { p: halo_weights[p] + COMP_SIZE_RATIO * halo_sizes[p] for p in range(0, graph.num_partitions())}
-    graph.update_local_weights(halo_total_weights, halo_mfactor=10, local_mfactor=10)
+    total_cost = { p: COEFF_SIZE * total_sizes[p] + COEFF_WEIGHT * total_weights[p] for p in range(0, graph.num_partitions())}
+    halo_cost = { p: COEFF_SIZE * halo_sizes[p] + COEFF_WEIGHT * halo_weights[p] for p in range(0, graph.num_partitions())}
+    graph.update_local_weights(halo_cost)
     ## compute 'halo' communication volume (total for each partition)
     ## compute 'halo' communication volume (total send volume and per neighbor, total receive volume and per neighbor)
     halo_volumes = graph.compute_halo_volumes()
     avg_halo_volumes = { p: halo_volumes[p] / graph.num_partition_neighbors(p) for p in range(0, graph.num_partitions()) }
     graph.update_local_volumes(halo_volumes)
-    print 'local weights:', local_weights
-    print 'halo weights :', halo_weights
-    print 'total weights:', total_weights
-    print 'halo volumes :', halo_volumes
-    return total_weights, total_sizes, halo_volumes, avg_halo_volumes
+    # print 'local weights:', local_weights
+    # print 'halo weights :', halo_weights
+    # print 'total weights:', total_weights
+    # print 'halo volumes :', halo_volumes
+    return total_cost, total_weights, total_sizes, halo_volumes, avg_halo_volumes
 
   def construct_halo_aware_partitioning(self):
     err = 1e20    ## something big
@@ -160,12 +166,10 @@ class Partitioner:
       test_graph.set_node_sizes(self.volumes)
       test_graph.compute_halos(self.inputconfig['nlayers'])
       test_graph.compute_part_neighbors()
-      compute_weight_cost, compute_size_cost, halo_cost, avg_halo_cost = self.compute_and_update_weights(test_graph)
-      compute_cost = { p: compute_weight_cost[p] + COMP_SIZE_RATIO * compute_size_cost[p] for p in range(0, nparts) }
+      compute_cost, compute_weight_cost, compute_size_cost, halo_cost, avg_halo_cost = self.compute_and_update_weights(test_graph)
       total_cost = { p: compute_cost[p] + COMP_COMM_RATIO * halo_cost[p] for p in range(0, nparts) }
-      print 'compute cost:', compute_cost
-      print 'halo cost:', halo_cost
       print 'total cost:', total_cost
+      test_graph.print_statistics()
       newerr = 1. - (float(min(total_cost.values())) / max(total_cost.values()))
       print '** Current error value:', newerr
       print '** Previous error value:', err
