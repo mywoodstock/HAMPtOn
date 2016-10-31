@@ -16,6 +16,7 @@
 ## find b using ordinary least-squares (olr)
 
 ## output set:
+##
 ## Version: hs
 ## Residual: [ 83934818.90832797]
 ## Solution: [ 7.05857794  0.11344668]
@@ -28,6 +29,7 @@
 ## Version: new9
 ## Residual: [  1.02529304e+08]
 ## Solution: [ 7.2506767   0.11230974]
+##
 ## Final Solution: [ 7.16298077  0.11333213]
 ##
 ## b_ntotcells      = 7.16298077

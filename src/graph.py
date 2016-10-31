@@ -198,8 +198,7 @@ class Graph:
     ## compute the sizes as total number of nodes in a partition (without weights)
     local_sizes = {}
     for p in range(0, self.num_partitions()):
-      pnodes = self.partitions[p]['nodes']
-      local_sizes[p] = len(pnodes)
+      local_sizes[p] = len(self.partitions[p]['nodes'])
     return local_sizes
 
   def compute_halo_weights(self, mfactor=1):
@@ -212,8 +211,7 @@ class Graph:
   def compute_halo_sizes(self, mfactor=1):
     halo_sizes = {}
     for p in range(0, self.num_partitions()):
-      pnodes = self.partitions[p]['halo_nodes']
-      halo_sizes[p] = len(pnodes)
+      halo_sizes[p] = len(self.partitions[p]['halo_nodes'])
     return halo_sizes
 
   def update_local_weights(self, halo_weights, halo_mfactor=1, local_mfactor=1):
@@ -253,7 +251,6 @@ class Graph:
     
     part_weight_nodes = {}
     part_weight_halos = {}
-    # part_weight_total = {}
     part_volume_halos = {}
     for part, pdata in self.partitions.iteritems():
       part_weight_nodes[part] = 0
@@ -264,7 +261,6 @@ class Graph:
       for nid in pdata['halo_nodes']:
         part_weight_halos[part] += self.nodelist[nid]['weight'][0]
         part_volume_halos[part] += self.nodelist[nid]['size'][0]
-      # part_weight_total[part] = part_weight_nodes[part] + part_weight_halos[part]
       part_volume_halos[part] /= len(pdata['neighbors'])
     part_weight_nodes = np.array(part_weight_nodes.values())
     part_weight_halos = np.array(part_weight_halos.values())
